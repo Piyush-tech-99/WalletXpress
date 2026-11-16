@@ -1,0 +1,110 @@
+version: '3.8'
+
+services:
+  nextjs-app:
+    build:
+      context: ./app
+    container_name: payment-app
+    ports:
+      - "3000:3000"
+    environment:
+      - NEXT_PUBLIC_SERVICE_MAIN=MAIN_SERVICE_URL_STARTING_WITH_HTTP_OR_HTTPS
+      - NEXT_PUBLIC_SERVICE_PAYMENT=PAYMENT_SERVICE_URL_STARTING_WITH_HTTP_OR_HTTPS
+      - NEXT_PUBLIC_PRODUCTION=PRODUCTION
+      - URL=FRONTEND_URL_STARTING_WITH_HTTP_OR_HTTPS
+      - NEXT_PUBLIC_URL=FRONTEND_URL_STARTING_WITH_HTTP_OR_HTTPS
+      - SALT=NO_OF_SALTS_INTEGER
+      - NEXT_PUBLIC_RAZORPAY_KEY_ID=rzp_test_YOUR_KEY
+      - NEXT_PUBLIC_RAZORPAY_KEY_SECRET=YOUR_RAZORPAY_SECRET
+    depends_on:
+      - redis
+      - postgres
+    volumes:
+      - ./app:/usr/src/app
+    restart: always
+    command: "npm run dev"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    networks:
+      - app-network
+
+  main-service:
+    build:
+      context: ./main
+    container_name: main-service
+    ports:
+      - "4000:4000"
+    environment:
+      - NEXT_PUBLIC_SERVICE_MAIN=MAIN_SERVICE_URL_STARTING_WITH_HTTP_OR_HTTPS
+      - NEXT_PUBLIC_SERVICE_PAYMENT=PAYMENT_SERVICE_URL_STARTING_WITH_HTTP_OR_HTTPS
+      - NEXT_PUBLIC_PRODUCTION=PRODUCTION
+      - URL=FRONTEND_URL_STARTING_WITH_HTTP_OR_HTTPS
+      - NEXT_PUBLIC_URL=FRONTEND_URL_STARTING_WITH_HTTP_OR_HTTPS
+      - SALT=NO_OF_SALTS_INTEGER
+      - NEXT_PUBLIC_RAZORPAY_KEY_ID=rzp_test_YOUR_KEY
+      - NEXT_PUBLIC_RAZORPAY_KEY_SECRET=YOUR_RAZORPAY_SECRET
+    depends_on:
+      - redis
+      - postgres
+    volumes:
+      - ./main:/usr/src/main
+      - /usr/src/main/node_modules
+    restart: unless-stopped
+    networks:
+      - app-network
+
+  payment-service:
+    build:
+      context: ./payment
+    container_name: payment-service
+    ports:
+      - "5000:5000"
+    environment:
+      - NEXT_PUBLIC_SERVICE_MAIN=MAIN_SERVICE_URL_STARTING_WITH_HTTP_OR_HTTPS
+      - NEXT_PUBLIC_SERVICE_PAYMENT=PAYMENT_SERVICE_URL_STARTING_WITH_HTTP_OR_HTTPS
+      - NEXT_PUBLIC_PRODUCTION=PRODUCTION
+      - URL=FRONTEND_URL_STARTING_WITH_HTTP_OR_HTTPS
+      - NEXT_PUBLIC_URL=FRONTEND_URL_STARTING_WITH_HTTP_OR_HTTPS
+      - SALT=NO_OF_SALTS_INTEGER
+      - NEXT_PUBLIC_RAZORPAY_KEY_ID=rzp_test_YOUR_KEY
+      - NEXT_PUBLIC_RAZORPAY_KEY_SECRET=YOUR_RAZORPAY_SECRET
+    depends_on:
+      - redis
+      - postgres
+    volumes:
+      - ./payment:/usr/src/pay
+      - /usr/src/pay/node_modules
+    restart: unless-stopped
+    networks:
+      - app-network
+
+  redis:
+    image: redis:alpine
+    container_name: redis
+    ports:
+      - "6379:6379"
+    restart: unless-stopped
+    networks:
+      - app-network
+
+  postgres:
+    image: postgres:latest
+    container_name: postgres
+    environment:
+      POSTGRES_USER: ROOT_USERNAME
+      POSTGRES_PASSWORD: ROOT_PASSWORD
+      POSTGRES_DB: DB_NAME
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    restart: unless-stopped
+    networks:
+      - app-network
+
+volumes:
+  postgres-data:
+
+networks:
+  app-network:
+    driver: bridge
